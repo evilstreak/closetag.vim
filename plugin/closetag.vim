@@ -5,15 +5,6 @@
 " Last Modified: Tue May 24 13:29:48 PDT 2005
 " Version: 0.9.1
 " XXX - breaks if close attempted while XIM is in preedit mode
-" TODO - allow usability as a global plugin -
-"    Add g:unaryTagsStack - always contains html tags settings
-"    and g:closetag_default_xml - user should define this to default to xml
-"    When a close is attempted but b:unaryTagsStack undefined,
-"    use b:closetag_html_style to determine if the file is to be treated
-"    as html or xml.  Failing that, check the filetype for xml or html.
-"    Finally, default to g:closetag_html_style.
-"    If the file is html, let b:unaryTagsStack=g:unaryTagsStack
-"    otherwise, let b:unaryTagsStack=""
 " TODO - make matching work for all comments
 "  -- kinda works now, but needs syn sync minlines to be very long
 "  -- Only check whether in syntax in the beginning, then store comment tags
@@ -117,25 +108,21 @@
 "
 "   * Expanded documentation
 
-"------------------------------------------------------------------------------
-" User configurable settings
-"------------------------------------------------------------------------------
-
-" if html, don't close certain tags.  Works best if ignorecase is set.
-" otherwise, capitalize these elements according to your html editing style
-if !exists("b:unaryTagsStack") || exists("b:closetag_html_style")
-  if &filetype == "html" || exists("b:closetag_html_style")
-    let b:unaryTagsStack="area base br dd dt hr img input link meta param"
-  else " for xsl and xsl
-    let b:unaryTagsStack=""
-  endif
-endif
-
 " Has this already been loaded?
 if exists("loaded_closetag")
   finish
 endif
 let loaded_closetag=1
+
+"------------------------------------------------------------------------------
+" User configurable settings
+"------------------------------------------------------------------------------
+
+" if html, don't close certain tags.  Works best if ignorecase is set.
+" otherwise, capitalize these elements according to your html editing style.
+" set b:unaryTagsStack when loading a buffer to customise this for a specific
+" filetype
+let g:unaryTagsStack="area base br dd dt hr img input link meta param"
 
 " set up mappings for tag closing
 inoremap <C-_> <C-R>=GetCloseTag()<CR>
@@ -223,9 +210,20 @@ function! GetLastOpenTag(unaryTagsStack)
   return ""
 endfunction
 
+function! s:InitializeUnaryTagStack()
+  if &filetype == "html" || exists("b:closetag_html_style")
+    let b:unaryTagsStack=g:unaryTagsStack
+  else " for xml and xsl
+    let b:unaryTagsStack=""
+  endif
+endfunction
+
 " Returns closing tag for most recent unclosed tag, respecting the
 " current setting of b:unaryTagsStack for tags that should not be closed
 function! GetCloseTag()
+  if !exists("b:unaryTagsStack")
+    call s:InitializeUnaryTagStack()
+  endif
   let tag=GetLastOpenTag("b:unaryTagsStack")
   if tag == ""
     return ""
